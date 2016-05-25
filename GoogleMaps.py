@@ -46,13 +46,15 @@ def getDistGoogle(mode, origins, destinations, timestamp = None,
     if json["status"] != "OK":
         lastGoogleError = "Status: " + json["status"]
         return None
-    json = json["rows"]
     result = []
-    for row in json:
+    for i in range(len(json["rows"])):
+        row = json["rows"][i]
         tmp = []
-        for el in row["elements"]:
+        for j in range(len(row["elements"])):
+            el = row["elements"][j]
             if el["status"] != "OK":
-                lastGoogleError = "SubStatus: " + el["status"]
+                lastGoogleError = ("SubStatus: " + el["status"] + " on origin '" +
+                    origins[i] + "' / destination '" + destination[j] + "'")
                 return None
             tmp.append(int(el["duration"]["value"]))
         result.append(tmp)
