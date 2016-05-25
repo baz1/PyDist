@@ -1,7 +1,10 @@
 #!/usr/bin/env python
 
+import modes
 import GoogleMaps
 import RATP
+import time
+import re
 
 lastError = ""
 
@@ -21,7 +24,7 @@ def getDist(mode, origins, destinations, timestamp = None, isArrivalTime = True,
     avoidTolls: Parameter set for the driving mode
     """
     global lastError
-    if mode == MODE_TRANSIT:
+    if mode == modes.MODE_TRANSIT:
         result = []
         for i in range(len(origins)):
             tmp = []
@@ -41,13 +44,62 @@ def getDist(mode, origins, destinations, timestamp = None, isArrivalTime = True,
     return result
 
 def getTimestamp(year, month, day, hour, minutes, seconds):
-    return time.mktime((year, month, day, hour, minutes, seconds, -1, -1, -1))
+    return int(time.mktime((year, month, day, hour, minutes, seconds, -1, -1, -1)))
+
+getTimestampFromStr_RE = re.compile("^(\\d{2})/(\\d{2})/(\\d{4})-(\\d{2}):(\\d{2}):(\\d{2})$")
+
+def getTimestampFromStr(s):
+    match = getTimestampFromStr_RE.match(s)
+    if match:
+        return getTimestamp(int(match.group(3)), int(match.group(2)), int(match.group(1)), int(match.group(4)), int(match.group(5)), int(match.group(6)))
+    try:
+        return int(s)
+    except ValueError:
+        print("Warning: unrecognized date '" + s + "'; set to now instead.")
+        return int(time.time())
 
 if __name__ == "__main__":
     import sys
     def help():
-        print("Usage: " + sys.argv[0] + " [arrive=time|depart=time] [gapikey=key] [nosuggest] [optimistic|pessimistic] [noTolls] originsFileName destinationsFileName")
+        print("Usage: " + sys.argv[0] + " [mode=walk|bicycle|car|transit] [arrive=time|depart=time] [gapikey=key] [nosuggest] [optimistic|pessimistic] [noTolls] originsFileName destinationsFileName")
         print("  where time can be a timestamp or of the form 'DD/MM/YYYY-HH:MM:SS'")
         sys.exit(0)
+    if len(sys.argv) < 3:
+        help()
+    mode = modes.MODE_CAR
+    timestamp = None
+    isArrivalTime = True
+    googleApiKey = None
+    useSuggestions = True
+    optimistic = 0
+    avoidTolls = False
+    for i in range(1, len(sys.argv) - 2):
+        if sys.argv[i] == "mode=walk":
+            mode = modes.MODE_WALK
+        elif sys.argv[i] == "mode=bicycle":
+            mode = modes.MODE_BICYCLE
+        elif sys.argv[i] == "mode=car":
+            mode = modes.MODE_CAR
+        elif sys.argv[i] == "mode=transit":
+            mode = modes.MODE_TRANSIT
+        elif sys.argv[i][:7] == "arrive=":
+            timestamp = getTimestampFromStr(sys.argv[i][7:])
+            isArrivalTime = True
+        elif sys.argv[i][:7] == "depart=":
+            timestamp = getTimestampFromStr(sys.argv[i][7:])
+            isArrivalTime = False
+        elif sys.argv[i][:8] == "gapikey=":
+            googleApiKey = sys.argv[i][8:]
+        elif sys.argv[i] == "nosuggest":
+            useSuggestions = False
+        elif sys.argv[i] == "optimistic":
+            optimistic = 1
+        elif sys.argv[i] == "pessimistic":
+            optimistic = -1
+        elif sys.argv[i] == "noTolls":
+            avoidTolls = True
+        else:
+            print("Unrecognized argument: '" + sys.argv[i] + "'")
+            help()
     # TODO
 

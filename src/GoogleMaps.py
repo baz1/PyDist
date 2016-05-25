@@ -1,6 +1,6 @@
 import requests
 import time
-from defs import *
+import modes
 
 lastGoogleError = ""
 
@@ -18,13 +18,13 @@ def getDistGoogle(mode, origins, destinations, timestamp = None,
     isArrivalTime: Set it to False to indicate that timestamp is the departure time
     avoidTolls: Parameter set for the driving mode
     """
-    global lastGoogleError, MODE_WALK, MODE_BICYCLE, MODE_CAR, MODE_TRANSIT
+    global lastGoogleError
     url = "https://maps.googleapis.com/maps/api/distancematrix/json"
     url += "?origins=" + '|'.join(origins)
     url += "&destinations=" + '|'.join(destinations)
-    url += "&mode=" + {MODE_WALK: "walking", MODE_BICYCLE: "bicycling",
-        MODE_CAR: "driving", MODE_TRANSIT: "transit"}.get(mode, "driving")
-    if avoidTolls and (mode == MODE_CAR):
+    url += "&mode=" + {modes.MODE_WALK: "walking", modes.MODE_BICYCLE: "bicycling",
+        modes.MODE_CAR: "driving", modes.MODE_TRANSIT: "transit"}.get(mode, "driving")
+    if avoidTolls and (mode == modes.MODE_CAR):
         url += "&avoid=tolls"
     if timestamp is None:
         timestamp = int(time.time()) + 1
@@ -32,9 +32,9 @@ def getDistGoogle(mode, origins, destinations, timestamp = None,
         url += "&arrival_time=" + str(timestamp)
     else:
         url += "&departure_time=" + str(timestamp)
-    if (optimistic < 0) and (mode == MODE_CAR):
+    if (optimistic < 0) and (mode == modes.MODE_CAR):
         url += "&traffic_model=pessimistic"
-    elif (optimistic > 0) and (mode == MODE_CAR):
+    elif (optimistic > 0) and (mode == modes.MODE_CAR):
         url += "&traffic_model=optimistic"
     if apiKey is not None:
         url += "&key=" + apiKey
