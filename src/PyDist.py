@@ -61,10 +61,11 @@ def getTimestampFromStr(s):
 if __name__ == "__main__":
     import sys
     def help():
-        print("Usage: " + sys.argv[0] + " [mode=walk|bicycle|car|transit] [arrive=time|depart=time] [gapikey=key] [nosuggest] [optimistic|pessimistic] [noTolls] originsFileName destinationsFileName")
+        print("Usage: " + sys.argv[0] + " [mode=walk|bicycle|car|transit] [arrive=time|depart=time] [gapikey=key] " +
+            "[nosuggest] [optimistic|pessimistic] [noTolls] originsFileName destinationsFileName outputFileName")
         print("  where time can be a timestamp or of the form 'DD/MM/YYYY-HH:MM:SS'")
         sys.exit(0)
-    if len(sys.argv) < 3:
+    if len(sys.argv) < 4:
         help()
     mode = modes.MODE_CAR
     timestamp = None
@@ -73,7 +74,7 @@ if __name__ == "__main__":
     useSuggestions = True
     optimistic = 0
     avoidTolls = False
-    for i in range(1, len(sys.argv) - 2):
+    for i in range(1, len(sys.argv) - 3):
         if sys.argv[i] == "mode=walk":
             mode = modes.MODE_WALK
         elif sys.argv[i] == "mode=bicycle":
@@ -101,5 +102,22 @@ if __name__ == "__main__":
         else:
             print("Unrecognized argument: '" + sys.argv[i] + "'")
             help()
-    # TODO
+    with open(sys.argv[-3], 'r') as f1:
+        f1lines = f1.readlines()
+    f1lines = map(lambda x: x.strip(), f1lines)
+    f1lines = filter(lambda x: x != "", f1lines)
+    with open(sys.argv[-2], 'r') as f2:
+        f2lines = f2.readlines()
+    f2lines = map(lambda x: x.strip(), f2lines)
+    f2lines = filter(lambda x: x != "", f2lines)
+    result = getDist(mode, f1lines, f2lines, timestamp, isArrivalTime,
+        googleApiKey, useSuggestions, optimistic, avoidTolls)
+    if result is None:
+        print("Error; last error message:")
+        print(lastError)
+        sys.exit(0)
+    with open(sys.argv[-1], 'w') as f:
+        for row in result:
+            f.write('\t'.join(map(str, row)) + "\n")
+    print("Done.")
 

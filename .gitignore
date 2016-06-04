@@ -1,3 +1,8 @@
 # Python compiled files
 *.pyc
 
+# Test files
+*.test
+
+# Key files
+*.key
