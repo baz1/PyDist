@@ -5,11 +5,13 @@ import GoogleMaps
 import RATP
 import time
 import re
+import sys
 
 lastError = ""
+unrecognizedAddresses = []
 
 def getDist(mode, origins, destinations, timestamp = None, isArrivalTime = True,
-    googleApiKey = None, useSuggestions = True, optimistic = 0, avoidTolls = False):
+    googleApiKey = None, useSuggestions = True, optimistic = 0, avoidTolls = False, dispProgress = False):
     """
     Returns a table of time (seconds) results for each couple of origin / destination,
     or None if an error happened (then read lastError).
@@ -23,12 +25,22 @@ def getDist(mode, origins, destinations, timestamp = None, isArrivalTime = True,
     optimistic: 0 for best guess, -1 for pessimistic and 1 for optimistic (driving conditions)
     avoidTolls: Parameter set for the driving mode
     """
-    global lastError
+    global lastError, unrecognizedAddresses
     if mode == modes.MODE_TRANSIT:
         result = []
+        dp = 0
+        if dispProgress:
+            sys.stdout.write(str(dp) + "%\r")
+            sys.stdout.flush()
         for i in range(len(origins)):
             tmp = []
             for j in range(len(destinations)):
+                if dispProgress:
+                    cp = int(100.0 * (i + float(j) / len(destinations)) / len(origins))
+                    if cp > dp:
+                        dp = cp
+                        sys.stdout.write(str(dp) + "%\r")
+                        sys.stdout.flush()
                 current = RATP.getDistRATP(origins[i], destinations[j], timestamp,
                     isArrivalTime, useSuggestions)
                 if current is None:
@@ -36,11 +48,51 @@ def getDist(mode, origins, destinations, timestamp = None, isArrivalTime = True,
                     return None
                 tmp.append(current)
             result.append(tmp)
+        if dispProgress:
+            sys.stdout.write("100%\n")
+            sys.stdout.flush()
+        unrecognizedAddresses += RATP.RATPToChange
+        RATP.RATPToChange = []
     else:
-        result = GoogleMaps.getDistGoogle(mode, origins, destinations, timestamp,
-            googleApiKey, optimistic, isArrivalTime, avoidTolls)
-        if result is None:
-            lastError = "GoogleMaps error: " + GoogleMaps.lastGoogleError
+        GOOGLE_LIMIT_GLOBAL = 100
+        GOOGLE_LIMIT_PERLIST = 25
+        stepD = min(GOOGLE_LIMIT_GLOBAL, len(destinations), GOOGLE_LIMIT_PERLIST)
+        stepO = min(max(1, int(GOOGLE_LIMIT_GLOBAL / len(destinations))), GOOGLE_LIMIT_PERLIST)
+        i1 = 0
+        result = []
+        dp = 0
+        if dispProgress:
+            sys.stdout.write(str(dp) + "%\r")
+            sys.stdout.flush()
+        while i1 < len(origins):
+            mO = min(stepO, len(origins) - i1)
+            subOrigins = origins[i1:i1 + mO]
+            subR = [[] for i2 in range(mO)]
+            j1  = 0
+            while j1 < len(destinations):
+                if dispProgress:
+                    cp = int(100.0 * (i1 + float(j1) / len(destinations)) / len(origins))
+                    if cp > dp:
+                        dp = cp
+                        sys.stdout.write(str(dp) + "%\r")
+                        sys.stdout.flush()
+                mD = min(stepD, len(destinations) - j1)
+                subDestinations = origins[j1:j1 + mD]
+                subresult = GoogleMaps.getDistGoogle(mode, subOrigins, subDestinations, timestamp,
+                    googleApiKey, optimistic, isArrivalTime, avoidTolls)
+                if subresult is None:
+                    lastError = "GoogleMaps error: " + GoogleMaps.lastGoogleError
+                    return None
+                for i2 in range(mO):
+                    subR[i2] += subresult[i2]
+                j1 += stepD
+            result += subR
+            i1 += stepO
+        if dispProgress:
+            sys.stdout.write("100%\n")
+            sys.stdout.flush()
+        unrecognizedAddresses += GoogleMaps.GoogleNotFound
+        GoogleMaps.GoogleNotFound = []
     return result
 
 def getTimestamp(year, month, day, hour, minutes, seconds):
@@ -112,6 +164,11 @@ if __name__ == "__main__":
     f2lines = filter(lambda x: x != "", f2lines)
     result = getDist(mode, f1lines, f2lines, timestamp, isArrivalTime,
         googleApiKey, useSuggestions, optimistic, avoidTolls)
+    if len(unrecognizedAddresses):
+        print("Unrecognized:")
+        def disp(x):
+            print("  " + x)
+        map(disp, unrecognizedAddresses)
     if result is None:
         print("Error; last error message:")
         print(lastError)

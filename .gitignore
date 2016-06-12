@@ -3,6 +3,7 @@
 
 # Test files
 *.test
+*.txt
 
 # Key files
 *.key

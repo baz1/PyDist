@@ -1,14 +1,16 @@
 import requests
 import time
 import modes
+import urllib
 
 lastGoogleError = ""
+GoogleNotFound = []
 
 def getDistGoogle(mode, origins, destinations, timestamp = None,
     apiKey = None, optimistic = 0, isArrivalTime = True, avoidTolls = False):
     """
     Returns a table of time (seconds) results for each couple of origin / destination,
-    or None if an error happened (then read lastGoogleError).
+    or None or with -1s inside if an error happened (then read lastGoogleError).
     mode: Transportation mode (see defs.py)
     origins: List of origins (addresses or GPS coordinates, e.g. "41.43206,-81.38992")
     destinations: List of destinations (addresses or GPS coordinates)
@@ -18,10 +20,10 @@ def getDistGoogle(mode, origins, destinations, timestamp = None,
     isArrivalTime: Set it to False to indicate that timestamp is the departure time
     avoidTolls: Parameter set for the driving mode
     """
-    global lastGoogleError
+    global lastGoogleError, GoogleNotFound
     url = "https://maps.googleapis.com/maps/api/distancematrix/json"
-    url += "?origins=" + '|'.join(origins)
-    url += "&destinations=" + '|'.join(destinations)
+    url += "?origins=" + urllib.quote('|'.join(origins), '|')
+    url += "&destinations=" + urllib.quote('|'.join(destinations), '|')
     url += "&mode=" + {modes.MODE_WALK: "walking", modes.MODE_BICYCLE: "bicycling",
         modes.MODE_CAR: "driving", modes.MODE_TRANSIT: "transit"}.get(mode, "driving")
     if avoidTolls and (mode == modes.MODE_CAR):
@@ -40,23 +42,39 @@ def getDistGoogle(mode, origins, destinations, timestamp = None,
         url += "&key=" + apiKey
     r = requests.get(url)
     if r.status_code != 200:
-        lastGoogleError = "Status code: " + str(r.status_code)
+        lastGoogleError = "Status code: " + str(r.status_code) + " on URL: '" + url + "'"
         return None
     json = r.json()
     if json["status"] != "OK":
-        lastGoogleError = "Status: " + json["status"]
+        lastGoogleError = "Status: " + json["status"] + " on URL: '" + url + "'"
         return None
     result = []
+    origs = json["origin_addresses"]
+    for i in range(len(origs)):
+        if origs[i] == "":
+            GoogleNotFound.append("Google: origin " + origins[i])
+    dests = json["destination_addresses"]
+    for j in range(len(dests)):
+        if dests[j] == "":
+            GoogleNotFound.append("Google: destination " + destinations[j])
     for i in range(len(json["rows"])):
+        if origs[i] == "":
+            continue
         row = json["rows"][i]
         tmp = []
         for j in range(len(row["elements"])):
+            if dests[j] == "":
+                continue
             el = row["elements"][j]
-            if el["status"] != "OK":
+            if el["status"] == "NOT_FOUND":
+                GoogleNotFound.append("Google: " + origins[i] + " to " + destination[j])
+                tmp.append(-1)
+            elif el["status"] != "OK":
                 lastGoogleError = ("SubStatus: " + el["status"] + " on origin '" +
                     origins[i] + "' / destination '" + destination[j] + "'")
-                return None
-            tmp.append(int(el["duration"]["value"]))
+                tmp.append(-1)
+            else:
+                tmp.append(int(el["duration"]["value"]))
         result.append(tmp)
     return result
 

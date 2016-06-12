@@ -3,6 +3,12 @@
 import PyDist
 import os.path
 import modes
+import re
+import time
+from datetime import datetime, timedelta
+
+reDayDate = re.compile("^([A-Z][a-z]+)-(\\d{2}):(\\d{2}):(\\d{2})$")
+days = {"Monday":0, "Tuesday":1, "Wednesday":2, "Thursday":3, "Friday":4, "Saturday":5, "Sunday":6}
 
 if __name__ == "__main__":
     import sys
@@ -26,17 +32,38 @@ if __name__ == "__main__":
     else:
         print("Error: Unrecognized answer.")
         sys.exit(0)
-    answer = raw_input("Time? (timestamp or DD/MM/YYYY-HH:MM:SS) [now]: ")
+    answer = raw_input("Time? (timestamp, DD/MM/YYYY-HH:MM:SS or Monday-HH:MM:SS) [now]: ")
     if (answer == "now") or (answer == ""):
         timestamp = None
-    else:
+    elif answer[2] == '/':
         timestamp = PyDist.getTimestampFromStr(answer)
+    else:
+        matchObj = reDayDate.match(answer)
+        if not matchObj:
+            print("Error: wrong answer format.")
+            sys.exit(0)
+        if not matchObj.group(1) in days:
+            print("Error: Wrong day ('" + matchObj.group(1) + "')")
+            sys.exit(0)
+        oday = days[matchObj.group(1)]
+        ohour = int(matchObj.group(2))
+        ominute = int(matchObj.group(3))
+        osecond = int(matchObj.group(4))
+        ts = time.time()
+        now = datetime.fromtimestamp(ts)
+        ts += 60 - now.second
+        ts += 60 * (59 - now.minute)
+        ts += 3600 * (23 - now.hour)
+        ts += 86400 * ((6 + oday - now.weekday()) % 7)
+        ts += 3600 * ohour + 60 * ominute + osecond
+        timestamp = int(ts)
+        print("Datetime used: " + str(datetime.fromtimestamp(timestamp)))
     gkeyFilename = raw_input("Google API key filename? [google.key]: ")
     if gkeyFilename == "":
         gkeyFilename = "google.key"
     if os.path.isfile(gkeyFilename):
         with open(gkeyFilename, 'r') as f:
-            googleApiKey = f.readlines()[0]
+            googleApiKey = f.readlines()[0].strip()
     else:
         print("Error: The file '" + gkeyFilename + "' does not exist.")
         sys.exit(0)
@@ -82,22 +109,33 @@ if __name__ == "__main__":
     if outputFilename == "":
         outputFilename = "durations.txt"
     print("Computing...")
-    with open(originsFilename, 'r') as f1:
-        f1lines = f1.readlines()
-    f1lines = map(lambda x: x.strip(), f1lines)
-    f1lines = filter(lambda x: x != "", f1lines)
-    with open(destinationsFilename, 'r') as f2:
-        f2lines = f2.readlines()
-    f2lines = map(lambda x: x.strip(), f2lines)
-    f2lines = filter(lambda x: x != "", f2lines)
-    result = PyDist.getDist(mode, f1lines, f2lines, timestamp, isArrivalTime,
-        googleApiKey, useSuggestions, optimistic, avoidTolls)
+    result = None
+    try:
+        with open(originsFilename, 'r') as f1:
+            f1lines = f1.readlines()
+        f1lines = map(lambda x: x.strip(), f1lines)
+        f1lines = filter(lambda x: x != "", f1lines)
+        with open(destinationsFilename, 'r') as f2:
+            f2lines = f2.readlines()
+        f2lines = map(lambda x: x.strip(), f2lines)
+        f2lines = filter(lambda x: x != "", f2lines)
+        result = PyDist.getDist(mode, f1lines, f2lines, timestamp, isArrivalTime,
+            googleApiKey, useSuggestions, optimistic, avoidTolls, True)
+    except:
+        print("Unexpected error:", sys.exc_info()[1])
+    if len(PyDist.unrecognizedAddresses):
+        print("Unrecognized:")
+        def disp(x):
+            print("  " + x)
+        map(disp, PyDist.unrecognizedAddresses)
     if result is None:
         print("Error; last error message:")
         print(PyDist.lastError)
+        raw_input("Press Enter to exit")
         sys.exit(0)
     with open(outputFilename, 'w') as f:
         for row in result:
             f.write('\t'.join(map(str, row)) + "\n")
     print("Done.")
+    raw_input("Press Enter to exit")
 
