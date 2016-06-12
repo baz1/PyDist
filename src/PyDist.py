@@ -77,7 +77,7 @@ def getDist(mode, origins, destinations, timestamp = None, isArrivalTime = True,
                         sys.stdout.write(str(dp) + "%\r")
                         sys.stdout.flush()
                 mD = min(stepD, len(destinations) - j1)
-                subDestinations = origins[j1:j1 + mD]
+                subDestinations = destinations[j1:j1 + mD]
                 subresult = GoogleMaps.getDistGoogle(mode, subOrigins, subDestinations, timestamp,
                     googleApiKey, optimistic, isArrivalTime, avoidTolls)
                 if subresult is None:
