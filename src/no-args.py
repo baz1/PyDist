@@ -24,40 +24,54 @@ if __name__ == "__main__":
     else:
         print("Error: Unrecognized answer.")
         sys.exit(0)
-    answer = raw_input("Do you want to set the arrive time instead of the departure time? (y/n) [y]: ")
-    if answer == "n":
-        isArrivalTime = False
-    elif (answer == "y") or (answer == ""):
+    useRATP = True
+    if mode == modes.MODE_TRANSIT:
+        answer = raw_input("Use RATP? (y/n) [y]: ")
+        if answer == "n":
+            useRATP = False
+        elif (answer == "y") or (answer == ""):
+            useRATP = True
+        else:
+            print("Error: Unrecognized answer.")
+            sys.exit(0)
+    answer = raw_input("Do you want to set the arrive time instead of the departure time? (y/n) [n]: ")
+    if answer == "y":
         isArrivalTime = True
+    elif (answer == "n") or (answer == ""):
+        isArrivalTime = False
     else:
         print("Error: Unrecognized answer.")
         sys.exit(0)
-    answer = raw_input("Time? (timestamp, DD/MM/YYYY-HH:MM:SS or Monday-HH:MM:SS) [now]: ")
-    if (answer == "now") or (answer == ""):
-        timestamp = None
-    elif answer[2] == '/':
-        timestamp = PyDist.getTimestampFromStr(answer)
-    else:
-        matchObj = reDayDate.match(answer)
-        if not matchObj:
-            print("Error: wrong answer format.")
-            sys.exit(0)
-        if not matchObj.group(1) in days:
-            print("Error: Wrong day ('" + matchObj.group(1) + "')")
-            sys.exit(0)
-        oday = days[matchObj.group(1)]
-        ohour = int(matchObj.group(2))
-        ominute = int(matchObj.group(3))
-        osecond = int(matchObj.group(4))
-        ts = time.time()
-        now = datetime.fromtimestamp(ts)
-        ts += 60 - now.second
-        ts += 60 * (59 - now.minute)
-        ts += 3600 * (23 - now.hour)
-        ts += 86400 * ((6 + oday - now.weekday()) % 7)
-        ts += 3600 * ohour + 60 * ominute + osecond
-        timestamp = int(ts)
-        print("Datetime used: " + str(datetime.fromtimestamp(timestamp)))
+    answer = raw_input("Time? (timestamp, DD/MM/YYYY-HH:MM:SS or DayOfWeek-HH:MM:SS) [Monday-08:30:00]: ")
+    timestamp = None
+    try:
+        timestamp = int(answer)
+    except ValueError:
+        if (len(answer) == 19) and (answer[2] == '/'):
+            timestamp = PyDist.getTimestampFromStr(answer)
+        else:
+            if answer == "":
+                answer = "Monday-08:30:00"
+            matchObj = reDayDate.match(answer)
+            if not matchObj:
+                print("Error: wrong answer format.")
+                sys.exit(0)
+            if not matchObj.group(1) in days:
+                print("Error: Wrong day ('" + matchObj.group(1) + "')")
+                sys.exit(0)
+            oday = days[matchObj.group(1)]
+            ohour = int(matchObj.group(2))
+            ominute = int(matchObj.group(3))
+            osecond = int(matchObj.group(4))
+            ts = time.time()
+            now = datetime.fromtimestamp(ts)
+            ts += 60 - now.second
+            ts += 60 * (59 - now.minute)
+            ts += 3600 * (23 - now.hour)
+            ts += 86400 * ((6 + oday - now.weekday()) % 7)
+            ts += 3600 * ohour + 60 * ominute + osecond
+            timestamp = int(ts)
+            print("Datetime used: " + str(datetime.fromtimestamp(timestamp)))
     gkeyFilename = raw_input("Google API key filename? [google.key]: ")
     if gkeyFilename == "":
         gkeyFilename = "google.key"
@@ -120,7 +134,7 @@ if __name__ == "__main__":
         f2lines = map(lambda x: x.strip(), f2lines)
         f2lines = filter(lambda x: x != "", f2lines)
         result = PyDist.getDist(mode, f1lines, f2lines, timestamp, isArrivalTime,
-            googleApiKey, useSuggestions, optimistic, avoidTolls, True)
+            googleApiKey, useSuggestions, optimistic, avoidTolls, useRATP, True)
     except:
         print("Unexpected error:", sys.exc_info()[1])
     if len(PyDist.unrecognizedAddresses):

@@ -52,11 +52,11 @@ def getDistGoogle(mode, origins, destinations, timestamp = None,
     origs = json["origin_addresses"]
     for i in range(len(origs)):
         if origs[i] == "":
-            GoogleNotFound.append("Google: origin " + origins[i])
+            GoogleNotFound.append("Google: origin " + origins[i].decode("utf8"))
     dests = json["destination_addresses"]
     for j in range(len(dests)):
         if dests[j] == "":
-            GoogleNotFound.append("Google: destination " + destinations[j])
+            GoogleNotFound.append("Google: destination " + destinations[j].decode("utf8"))
     for i in range(len(json["rows"])):
         if origs[i] == "":
             continue
@@ -67,14 +67,19 @@ def getDistGoogle(mode, origins, destinations, timestamp = None,
                 continue
             el = row["elements"][j]
             if el["status"] == "NOT_FOUND":
-                GoogleNotFound.append("Google: " + origins[i] + " to " + destination[j])
+                GoogleNotFound.append("Google: " + origins[i].decode("utf8") + " to " + destinations[j].decode("utf8"))
+                tmp.append(-1)
+            elif el["status"] == "ZERO_RESULTS":
                 tmp.append(-1)
             elif el["status"] != "OK":
                 lastGoogleError = ("SubStatus: " + el["status"] + " on origin '" +
-                    origins[i] + "' / destination '" + destination[j] + "'")
-                tmp.append(-1)
+                    origins[i].decode("utf8") + "' / destination '" + destinations[j].decode("utf8") + "'")
+                return None
             else:
-                tmp.append(int(el["duration"]["value"]))
+                if "duration_in_traffic" in el:
+                    tmp.append(int(el["duration_in_traffic"]["value"]))
+                else:
+                    tmp.append(int(el["duration"]["value"]))
         result.append(tmp)
     return result
 

@@ -11,7 +11,8 @@ lastError = ""
 unrecognizedAddresses = []
 
 def getDist(mode, origins, destinations, timestamp = None, isArrivalTime = True,
-    googleApiKey = None, useSuggestions = True, optimistic = 0, avoidTolls = False, dispProgress = False):
+    googleApiKey = None, useSuggestions = True, optimistic = 0, avoidTolls = False,
+    useRATP = True, dispProgress = False):
     """
     Returns a table of time (seconds) results for each couple of origin / destination,
     or None if an error happened (then read lastError).
@@ -24,9 +25,11 @@ def getDist(mode, origins, destinations, timestamp = None, isArrivalTime = True,
     useSuggestions: Do we want to accept address corrections, and automatically choose the first suggestion?
     optimistic: 0 for best guess, -1 for pessimistic and 1 for optimistic (driving conditions)
     avoidTolls: Parameter set for the driving mode
+    useRATP: Do we use RATP for transit mode?
+    dispProgress: Do we display the progress?
     """
     global lastError, unrecognizedAddresses
-    if mode == modes.MODE_TRANSIT:
+    if (mode == modes.MODE_TRANSIT) and useRATP:
         result = []
         dp = 0
         if dispProgress:
