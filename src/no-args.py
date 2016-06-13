@@ -25,6 +25,8 @@ if __name__ == "__main__":
         print("Error: Unrecognized answer.")
         sys.exit(0)
     useRATP = True
+    defArrival = "y"
+    defTime = "Monday-09:15:00"
     if mode == modes.MODE_TRANSIT:
         answer = raw_input("Use RATP? (y/n) [y]: ")
         if answer == "n":
@@ -34,15 +36,22 @@ if __name__ == "__main__":
         else:
             print("Error: Unrecognized answer.")
             sys.exit(0)
-    answer = raw_input("Do you want to set the arrive time instead of the departure time? (y/n) [n]: ")
+    elif mode == modes.MODE_CAR:
+        defArrival = "n"
+        defTime = "Monday-08:30:00"
+    answer = raw_input("Do you want to set the arrive time instead of the departure time? (y/n) [" + defArrival + "]: ")
+    if answer == "":
+        answer = defArrival
     if answer == "y":
         isArrivalTime = True
-    elif (answer == "n") or (answer == ""):
+    elif answer == "n":
         isArrivalTime = False
     else:
         print("Error: Unrecognized answer.")
         sys.exit(0)
-    answer = raw_input("Time? (timestamp, DD/MM/YYYY-HH:MM:SS or DayOfWeek-HH:MM:SS) [Monday-08:30:00]: ")
+    answer = raw_input("Time? (timestamp, DD/MM/YYYY-HH:MM:SS or DayOfWeek-HH:MM:SS) [" + defTime + "]: ")
+    if answer == "":
+        answer = defTime
     timestamp = None
     try:
         timestamp = int(answer)
@@ -50,8 +59,6 @@ if __name__ == "__main__":
         if (len(answer) == 19) and (answer[2] == '/'):
             timestamp = PyDist.getTimestampFromStr(answer)
         else:
-            if answer == "":
-                answer = "Monday-08:30:00"
             matchObj = reDayDate.match(answer)
             if not matchObj:
                 print("Error: wrong answer format.")
